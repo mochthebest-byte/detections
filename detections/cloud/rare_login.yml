@@ -1,0 +1,32 @@
+rule:
+  name: Rare Successful Cloud Login
+  id: cloud-rare-success-login
+  status: experimental
+  description: >
+    Detects a successful cloud login from a user that has not logged in
+    from this IP, location, or time window before.
+  severity: medium-high
+  confidence: medium
+
+logsource:
+  platform: cloud
+  service: authentication
+
+detection:
+  logic:
+    type: behavioral
+    baseline: 14d
+
+false_positives:
+  - First login from new device or location
+  - VPN or mobile network changes
+  - New employee onboarding
+
+mitre_attack:
+  - T1078  # Valid Accounts
+
+response:
+  - Validate user and login context
+  - Check MFA status
+  - Monitor subsequent actions
+  - Escalate if privileged account

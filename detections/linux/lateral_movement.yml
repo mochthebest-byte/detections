@@ -1,0 +1,42 @@
+rule:
+  name: Suspicious Internal SSH Lateral Movement
+  id: linux-ssh-lateral-movement
+  status: experimental
+  description: >
+    Detects a single user authenticating via SSH to multiple internal hosts
+    within a short time window.
+  severity: high
+  confidence: medium
+
+logsource:
+  platform: linux
+  service: ssh
+
+detection:
+  time_window: 15m
+
+  condition:
+    distinct_hosts >= 3
+
+  esql:
+    query: |
+      FROM filebeat-*
+      | WHERE event.dataset == "system.auth"
+        AND event.outcome == "success"
+      | STATS
+          distinct_hosts = COUNT_DISTINCT(host.name)
+        BY user.name, source.ip
+
+false_positives:
+  - Automation tools (Ansible, Salt, Puppet)
+  - Legitimate admin maintenance
+  - Bastion host usage
+
+mitre_attack:
+  - T1021.004  # Remote Services: SSH
+
+response:
+  - Verify if activity matches admin change window
+  - Inspect commands and processes on affected hosts
+  - Contain access if unexpected
+  - Escalate if combined with other anomalies

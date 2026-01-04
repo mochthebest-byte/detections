@@ -1,0 +1,46 @@
+rule:
+  name: SSH Brute-force Followed by Successful Login
+  id: linux-ssh-bruteforce-success
+  status: experimental
+  description: >
+    Detects multiple failed SSH login attempts followed by a successful
+    authentication, indicating possible credential compromise.
+  severity: high
+  confidence: medium-high
+
+logsource:
+  platform: linux
+  service: ssh
+
+detection:
+  time_window: 10m
+
+  condition:
+    failed_attempts >= 10 and success_attempts >= 1
+
+  esql:
+    query: |
+      FROM filebeat-*
+      | WHERE event.dataset == "system.auth"
+      | EVAL
+          failed = CASE(event.outcome == "failure", 1, 0),
+          success = CASE(event.outcome == "success", 1, 0)
+      | STATS
+          failed_attempts = SUM(failed),
+          success_attempts = SUM(success)
+        BY source.ip, user.name
+
+false_positives:
+  - Administrator mistyped password multiple times
+  - VPN or jump-host reuse
+  - Automated scripts with retry logic
+
+mitre_attack:
+  - T1110  # Brute Force
+  - T1078  # Valid Accounts
+
+response:
+  - Validate source IP and user context
+  - Review post-login activity
+  - Reset credentials if suspicious
+  - Escalate to Tier 2 / IR
